@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ØMENS — DROP/01 In Development</title>
 <!-- ============================================================
-     ØMENS SITE — V1.1 MOTION PREVIEW
-     Identity, layout, palette and type are unchanged from V1.
-     This copy adds the motion layer only. V1 lives in site/.
+     ØMENS SITE — V1.2 REFINEMENT PREVIEW
+     Identity, layout, palette, type and motion preserved from V1.1.
+     V1.2 fixes: parallax loop, topbar contrast, mobile overflow,
+     WCAG small-text contrast, tap targets, philosophy underline,
+     development-sheet chest mark. V1 and V1.1 are untouched.
      ============================================================ -->
 <meta name="description" content="ØMENS. Independent Malaysian fashion label. Considered form. Industrial restraint. DROP/01 — in development.">
 <meta property="og:title" content="ØMENS — DROP/01 In Development">
@@ -48,6 +50,20 @@
      Future: this becomes the full Index page of the sitemap.
      ============================================================ -->
 <section id="index" class="hero">
+  <!-- HERO VIDEO TEST SLOT (internal evaluation — temporary asset from founder).
+       Sits BEHIND the existing hero composition (outline, logo, type, tags) and
+       never changes layout: absolutely positioned, cover-cropped, no flow impact.
+       The current static hero (CSS ground + logo.png) remains the resting
+       fallback — the layer is only loaded/faded-in when JS decides it may play
+       (desktop pointer, motion allowed, not ?static). To remove the test:
+       delete this <div class="hero__media"> block. To swap the clip: replace
+       assets/media/model-movement.mp4 (same filename). -->
+  <div class="hero__media" aria-hidden="true">
+    <video class="hero__video" data-src="assets/media/model-movement.mp4"
+           poster="assets/img/hero-poster.jpg"
+           muted loop playsinline preload="none" tabindex="-1"></video>
+  </div>
+
   <div class="hero__outline hero-outline-in" aria-hidden="true" data-parallax="0.16">DROP/01</div>
 
   <div class="hero__core hero-enter">

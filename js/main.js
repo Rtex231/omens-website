@@ -1,5 +1,5 @@
-/* ØMENS — main.js (V1.1)
-   Scroll reveals + sequential detail reveals + restrained parallax.
+/* ØMENS — main.js (V1.2)
+   Scroll reveals + sequential detail reveals + fixed parallax + topbar contrast.
    No libraries. All motion respects prefers-reduced-motion. */
 
 /* Static render for screenshots/SEO previews: append ?static to the URL */
@@ -38,21 +38,26 @@ document.querySelectorAll('.specs tr').forEach((el, i) => {
   io.observe(el);
 });
 
-/* ---------- restrained parallax ---------- */
-/* Desktop pointer devices only; transform-only; capped; skipped
-   when reduced motion is requested. */
+/* ---------- restrained parallax (V1.2 fix) ---------- */
+/* V1.1 bug: offset was derived from getBoundingClientRect() of the element
+   we were transforming, so the transform fed back into the next measurement
+   → runaway to the cap and a stuck composition. V1.2 derives the offset from
+   window.scrollY relative to the hero's LAYOUT position (offsetTop), which is
+   unaffected by the transform. At scrollY 0 the offset is exactly 0, so the
+   hero rests in its original composition. */
 if (!reduceMotion && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
   const parallaxEls = document.querySelectorAll('[data-parallax]');
+  const hero = document.querySelector('.hero');
+  const CAP = 60;
   let ticking = false;
 
   const update = () => {
-    const vh = window.innerHeight;
+    const heroTop = hero ? hero.offsetTop : 0;      // layout, not transform
+    const scrolled = window.scrollY - heroTop;       // 0 while hero is at top
     parallaxEls.forEach((el) => {
       const speed = parseFloat(el.dataset.parallax) || 0.15;
-      const rect = el.getBoundingClientRect();
-      /* offset relative to viewport centre, capped to +/-60px */
-      const rel = (rect.top + rect.height / 2 - vh / 2) * -speed;
-      el.style.setProperty('--py', Math.max(-60, Math.min(60, rel)) + 'px');
+      const py = Math.max(0, Math.min(CAP, scrolled * speed));
+      el.style.setProperty('--py', py + 'px');
     });
     ticking = false;
   };
@@ -60,5 +65,76 @@ if (!reduceMotion && window.matchMedia('(hover: hover) and (pointer: fine)').mat
   window.addEventListener('scroll', () => {
     if (!ticking) { requestAnimationFrame(update); ticking = true; }
   }, { passive: true });
+  window.addEventListener('resize', update, { passive: true });
   update();
 }
+
+/* ---------- media: reduced-motion video guard (V1.2) ---------- */
+/* Future campaign videos autoplay muted+loop. Under reduced motion,
+   pause them and remove autoplay so no motion is forced on the user. */
+if (reduceMotion) {
+  document.querySelectorAll('video[autoplay]').forEach((v) => {
+    v.removeAttribute('autoplay'); v.pause();
+  });
+}
+
+/* ---------- hero video TEST slot (internal evaluation) ---------- */
+/* The <video> ships with preload="none" and no src, so on mobile, under
+   prefers-reduced-motion, and in ?static mode NOTHING is fetched beyond the
+   tiny poster — the static hero stays the resting visual. Only a desktop
+   pointer with motion allowed claims the slot: JS then sets src from
+   data-src, plays, and fades the layer in once frames are actually rolling
+   ('playing'). The layer also pauses when the hero scrolls out of view so
+   the clip never decodes off-screen. Remove the .hero__media block in
+   index.html to remove the test entirely. */
+(() => {
+  const media = document.querySelector('.hero__media');
+  const video = document.querySelector('.hero__video');
+  const hero = document.querySelector('.hero');
+  if (!media || !video || !hero) return;
+
+  const allowed =
+    !reduceMotion &&
+    !document.body.classList.contains('is-static') &&
+    window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  if (!allowed) return; // static hero remains; zero bytes of video fetched
+
+  video.src = video.dataset.src;
+  video.load();
+
+  const start = () => video.play().catch(() => {});
+  video.addEventListener('playing', () => media.classList.add('is-live'));
+
+  /* only run while the hero is meaningfully in view */
+  const vis = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) start();
+      else video.pause();
+    });
+  }, { threshold: 0.08 });
+  vis.observe(hero);
+})();
+
+/* ---------- topbar contrast across FRAME/SHEET (V1.2) ---------- */
+/* When the fixed bar overlaps the light paper SHEET section, switch it to a
+   solid dark chip so the steel logo/text keep contrast. Runs regardless of
+   reduced-motion — this is a legibility fix, not decoration. */
+(() => {
+  const bar = document.querySelector('.topbar');
+  const light = document.querySelector('.drop');
+  if (!bar || !light) return;
+
+  const sync = () => {
+    const rect = light.getBoundingClientRect();
+    const barH = bar.offsetHeight || 60;
+    bar.classList.toggle('is-over-light', rect.top < barH && rect.bottom > 0);
+  };
+
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) { requestAnimationFrame(() => { sync(); ticking = false; }); ticking = true; }
+  }, { passive: true });
+  window.addEventListener('resize', sync, { passive: true });
+  sync();
+})();
