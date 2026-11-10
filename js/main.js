@@ -79,13 +79,15 @@ if (reduceMotion) {
 }
 
 /* ---------- hero video TEST slot (internal evaluation) ---------- */
-/* The <video> ships with preload="none" and no src, so on mobile, under
-   prefers-reduced-motion, and in ?static mode NOTHING is fetched beyond the
-   tiny poster — the static hero stays the resting visual. Only a desktop
-   pointer with motion allowed claims the slot: JS then sets src from
-   data-src, plays, and fades the layer in once frames are actually rolling
-   ('playing'). The layer also pauses when the hero scrolls out of view so
-   the clip never decodes off-screen. Remove the .hero__media block in
+/* The <video> ships with preload="none" and no src, so under
+   prefers-reduced-motion and in ?static mode NOTHING is fetched beyond the
+   tiny poster — the static hero stays the resting visual. Otherwise the
+   slot is claimed and a device-appropriate clip is chosen:
+     • desktop (fine pointer)  -> data-src        (full 960 clip, ~3.7 MB)
+     • mobile / touch          -> data-src-mobile (540 clip, ~126 KB)
+   JS sets src, plays, and fades the layer in once frames are rolling
+   ('playing'). The layer pauses when the hero scrolls out of view so the
+   clip never decodes off-screen. Remove the .hero__media block in
    index.html to remove the test entirely. */
 (() => {
   const media = document.querySelector('.hero__media');
@@ -95,12 +97,16 @@ if (reduceMotion) {
 
   const allowed =
     !reduceMotion &&
-    !document.body.classList.contains('is-static') &&
-    window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    !document.body.classList.contains('is-static');
 
   if (!allowed) return; // static hero remains; zero bytes of video fetched
 
-  video.src = video.dataset.src;
+  /* pick the clip by input type: fine pointer = desktop, else mobile */
+  const isDesktop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const src = isDesktop ? video.dataset.src : (video.dataset.srcMobile || video.dataset.src);
+  if (!src) return;
+
+  video.src = src;
   video.load();
 
   const start = () => video.play().catch(() => {});
